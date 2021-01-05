@@ -20,6 +20,7 @@ class CreateUsersTable extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->uuid('stripe_customer_id')->nullable()->unique();
+            $table->uuid('stripe_customer_setup_intent_id')->nullable()->unique();
             $table->rememberToken();
             $table->timestamps();
         });

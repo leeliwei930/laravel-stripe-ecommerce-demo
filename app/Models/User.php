@@ -10,6 +10,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Stripe\Checkout\Session;
 use Stripe\Customer;
+use Stripe\ErrorObject;
+use Stripe\Exception\ApiErrorException;
+use Stripe\SetupIntent;
+use Stripe\Stripe;
 use Stripe\StripeObject;
 
 /**
@@ -21,6 +25,7 @@ use Stripe\StripeObject;
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $stripe_customer_id
+ * @property string|null $stripe_customer_setup_intent_id
  * @property string|null $remember_token
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -30,6 +35,8 @@ use Stripe\StripeObject;
  * @property-read int|null $notifications_count
  * @property-read Collection|\App\Models\Order[] $orders
  * @property-read int|null $orders_count
+ * @property-read Collection|\App\Models\PaymentMethod[] $paymentMethods
+ * @property-read int|null $payment_methods_count
  * @method static \Illuminate\Database\Eloquent\Builder|User newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|User newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|User query()
@@ -41,10 +48,9 @@ use Stripe\StripeObject;
  * @method static \Illuminate\Database\Eloquent\Builder|User wherePassword($value)
  * @method static \Illuminate\Database\Eloquent\Builder|User whereRememberToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder|User whereStripeCustomerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|User whereStripeCustomerSetupIntentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|User whereUpdatedAt($value)
  * @mixin \Eloquent
- * @property-read Collection|\App\Models\PaymentMethod[] $paymentMethods
- * @property-read int|null $payment_methods_count
  */
 class User extends Authenticatable
 {
@@ -84,28 +90,39 @@ class User extends Authenticatable
     public function retrieveStripeCustomerAccount(): Customer
     {
         $stripe = new StripePaymentAdapter();
-
-        return $stripe->retrieveCustomer($this);
+        if(!is_null($this->stripe_customer_id)){
+            try {
+                return $stripe->retrieveCustomer($this);
+            } catch (ApiErrorException $stripeException){
+                if($stripeException->getStripeCode() === ErrorObject::CODE_RESOURCE_MISSING){
+                    return $this->createStripeCustomerAccount($stripe);
+                }
+            }
+        }
+        return $this->createStripeCustomerAccount($stripe);
 
     }
 
-    public function createStripeCustomerAccount(StripePaymentAdapter $stripe): Customer
+    public function retrieveStripeSetupIntent() : SetupIntent
+    {
+        $stripe = new StripePaymentAdapter();
+        $stripeCustomerId = $this->retrieveStripeCustomerAccount();
+        if(!is_null($this->stripe_customer_setup_intent_id)){
+            return $stripe->retrieveSetupIntent($this->stripe_customer_setup_intent_id);
+        } else {
+            $setupIntent = $stripe->createSetupIntent($stripeCustomerId);
+            $this->stripe_customer_setup_intent_id = $setupIntent->id;
+            $this->save();
+            return $setupIntent;
+        }
+    }
+    private function createStripeCustomerAccount(StripePaymentAdapter $stripe): Customer
     {
         $customer = $stripe->createCustomer($this);
         $this->stripe_customer_id = $customer->id;
         $this->save();
         return $customer;
     }
-
-    protected static function booted()
-    {
-        static::created(function (User $user) {
-            // auto create a stripe customer when user is created
-            $stripeAdapter = new StripePaymentAdapter();
-            $user->createStripeCustomerAccount($stripeAdapter);
-        });
-    }
-
 
 
 

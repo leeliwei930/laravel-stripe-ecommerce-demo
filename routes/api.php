@@ -36,3 +36,8 @@ Route::prefix('payment-methods')->group(function(){
     Route::get('/setup-intent', [\App\Http\Controllers\PaymentMethodController::class , 'createSetupIntent']);
     Route::post('/create' , [\App\Http\Controllers\PaymentMethodController::class, 'create']);
 });
+
+Route::prefix('orders')->group(function(){
+    // can be use as callback url for others payment channel to update the order's payment status
+    Route::get('/{order}/payment/reconfirm', [\App\Http\Controllers\CheckoutController::class, 'reconfirmPayment']);
+});

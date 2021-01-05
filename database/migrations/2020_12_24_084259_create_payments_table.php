@@ -23,7 +23,7 @@ class CreatePaymentsTable extends Migration
             $table->text('payment_status_message')->nullable();
             $table->unsignedBigInteger('amount');
             $table->unsignedBigInteger('order_id');
-            $table->string('tx_no')->unique()->nullable();
+            $table->string('tx_no')->unique();
             $table->string('checkout_id')->unique()->nullable();
             $table->string('refund_id')->unique()->nullable();
             $table->unsignedBigInteger('payment_method_id')->nullable();

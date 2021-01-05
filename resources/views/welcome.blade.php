@@ -46,13 +46,12 @@
                             <input type="number" min="1" :max="item.product.quantity" class="form-input w-3/12" v-model="item.new_quantity" @change="updateCartItem(item)" placeholder="Enter your quantity"/>
                         </div>
                     </div>
-                    <button :disabled="cartItems.length == 0 || paymentMethods.length === 0" @click="checkout" class="ml-auto bg-indigo-500 hover:bg-indigo-400 text-white py-2 px-4 rounded">Checkout</button>
+                    <button :disabled="cartItems.length == 0 || paymentMethods.length === 0 || disableCheckout" @click="checkout" class="ml-auto bg-indigo-500 hover:bg-indigo-400 text-white py-2 px-4 rounded">Checkout</button>
                 </div>
             </div>
-
             <div class="mx-5 my-2">
                 <h2 class="text-lg text-black font-bold">Payment Methods</h2>
-                <button @click="showCreditCardForm = !showCreditCardForm" class="ml-auto bg-indigo-500 hover:bg-indigo-400 text-white py-2 px-4 rounded">
+                <button @click="showCreditCardForm = !showCreditCardForm" class="my-2 ml-auto bg-indigo-500 hover:bg-indigo-400 text-white py-2 px-4 rounded">
                     @{{ (showCreditCardForm) ? 'Close' : 'Add Credit Card' }}
                 </button>
                 <template  v-if="showCreditCardForm">
@@ -76,7 +75,9 @@
                     </div>
                 </template>
             </div>
-
+            <div class="mx-5 my-2">
+                <h2 class="text-lg text-black font-bold">Orders</h2>
+            </div>
         </div>
     </body>
     <script>

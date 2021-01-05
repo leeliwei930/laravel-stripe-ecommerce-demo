@@ -23,25 +23,27 @@ class StripeWebhookController extends Controller
 
     public function __invoke(Request $request)
     {
-        $sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'];
+        $sig_header = $request->header('Stripe-Signature');
         Log::debug($sig_header);
         $this->stripe->setWebhookEvent(
+            // the content payload send from the stripe
             $request->getContent(),
-            $sig_header,
-            config('services.stripe.webhook_secret')
+            $sig_header, // signature from stripe
+            config('services.stripe.webhook_secret') // our webhook secret loaded from services.php and proxy from .env
         );
 
-        if($this->stripe->hasAnyWebhookError()){
+        if($this->stripe->hasAnyWebhookError()){ // check is there any webhook error
             $error = $this->stripe->getWebhookError()->getMessage();
             Log::error("Stripe Webhook Error: $error");
             return response('Webhook Challenge Error', 400);
         }
 
-        $event = $this->stripe->getWebhookEvent();
+        $event = $this->stripe->getWebhookEvent(); // retrieve the webhook event object
 
-        switch($event->type){
+
+        switch($event->type){ // forward different event to different event handler
             case 'payment_intent.succeeded':
-                Log::debug("PAYMENT SUCCESS: ".$event->data->toJSON());
+//                Log::debug("PAYMENT SUCCESS: ".$event->data->toJSON()); uncomment to read the JSON event data
                 $this->handlePaymentSuccess($event->data->object);
                 return;
 
@@ -50,13 +52,12 @@ class StripeWebhookController extends Controller
     }
 
     private function handlePaymentSuccess(PaymentIntent $paymentIntent){
-        $payment = Payment::where('tx_no', $paymentIntent->id)->first();
+        // find the payment transaction number
+        $payment = Payment::firstWhere('tx_no', $paymentIntent->id);
 
-        $paymentMethod = PaymentMethod::where('token', $paymentIntent->payment_method)->first();
-
+        // update the payment status to success
         $payment->update([
             'status' => Payment::SUCCESS,
-            'payment_method_id' => $paymentMethod->id
         ]);
 
         return response()->json(['success' => true]);

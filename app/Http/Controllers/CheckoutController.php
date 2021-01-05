@@ -22,16 +22,19 @@ class CheckoutController extends Controller
     protected $cartRepository;
     protected $orderRepository;
     protected $user;
-    public function __construct(CartRepository $cartRepository, OrderRepository $orderRepository)
+    protected $stripe;
+    public function __construct(CartRepository $cartRepository, OrderRepository $orderRepository, StripePaymentAdapter $stripePaymentAdapter)
     {
         $this->cartRepository = $cartRepository;
         $this->orderRepository = $orderRepository;
         $this->user = Auth::user();
+        $this->stripe = $stripePaymentAdapter;
     }
 
 
     public function checkout(Request $request, StripePaymentAdapter $stripe)
     {
+        // validate all the payment method, selected cart items for checkout
         $validator = Validator::make($request->toArray(),[
             'payment_method_id' => [
                 'required',
@@ -66,22 +69,85 @@ class CheckoutController extends Controller
                 },
             ]
         ]);
+
         if($validator->fails()){
             return response()->json($validator->errors()->toArray(), 422);
         }
 
+        // Checkout an order from selected cart items
         $order = $this->cartRepository->checkout($request->input('cart_items'));
+
+
         $paymentMethodID = $request->input('payment_method_id');
 
+        // retrieve laravel payment method id
         $paymentMethod = $this->user->paymentMethods()->find($paymentMethodID);
 
-        $payment = $this->orderRepository->createPayment($paymentMethod, $order);
+        // create payment intent
+        $paymentIntent = $this->stripe->createPaymentIntent([
+            'description' => "Payment for order $order->id",
+            'customer' => $this->user->stripe_customer_id, // use the current logged in user's stripe_customer_id
+            'payment_method' => $paymentMethod->token, // use the stripe_payment_method_id that we stored before with the payment method
+            'amount' => $order->calculateAmount(), // total amount, Be careful this is calculated in cents
+            'currency' => 'myr', // Malaysia Ringgit currency
+            'confirmation_method' => 'manual', // the confirmation will be done on frontend as manual, such as 3D secure card authorization flow
+            'confirm' => true, // try to confirm this payment
+        ]);
 
+        // if stripe can't create the payment intent return error to frontend
+        if($this->stripe->anyError()){
+            return response()->json([
+                'error' => 'stripe',
+                'message' => $this->stripe->getError()->getMessage()
+            ], 422);
+        }
 
+        // create a payment and attach to the order
+        $payment = $this->orderRepository->createPayment($paymentIntent, $paymentMethod, $order);
 
-        return response()->json(['payment'=> $payment->toArray()], 200);
+        // response the stripe payment_intent data for this order
+        return response()->json([
+            'order' => $order->toArray(),
+            'payment_intent'=> $paymentIntent->toArray()
+        ], 200);
 
     }
 
+    // use to probe with third party payment gateway payment status
+    public function reconfirmPayment($order, Request $request)
+    {
+        $order = $this->user->orders()->find($order);
 
+        $order->load('payment.paymentMethod.paymentGateway');
+
+        $payment = $order['payment'];
+
+        $paymentMethod = $payment['paymentMethod'];
+        $paymentGateway = $paymentMethod['paymentGateway'];
+
+        return $this->handleReconfirmPayment($paymentGateway->name, $payment->tx_no);
+
+    }
+
+    private function handleReconfirmPayment($paymentGatewayName, $transactionRefNumber){
+        switch($paymentGatewayName){
+            case "stripe":
+                return $this->reconfirmStripePaymentIntent($transactionRefNumber);
+        }
+    }
+
+    private function reconfirmStripePaymentIntent($transactionRefNumber){
+        $paymentIntent = $this->stripe->retrievePaymentIntent($transactionRefNumber);
+
+        // reconfirm the payment intent
+        $paymentIntent->confirm();
+
+        if($this->stripe->anyError()){
+            return response()->json([
+                'message' => $this->stripe->getError()->getMessage()
+            ], 422);
+        }
+
+        return response()->json(['payment_intent' => $paymentIntent->toArray()]);
+    }
 }

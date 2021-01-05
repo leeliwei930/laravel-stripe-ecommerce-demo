@@ -36,6 +36,10 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder|PaymentMethod whereUserId($value)
  * @mixin \Eloquent
  * @property-read \App\Models\User $user
+ * @property string $card_fingerprint
+ * @property int $is_primary
+ * @method static \Illuminate\Database\Eloquent\Builder|PaymentMethod whereCardFingerprint($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|PaymentMethod whereIsPrimary($value)
  */
 class PaymentMethod extends Model
 {

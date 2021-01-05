@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use Illuminate\Database\Eloquent\Model;
+use Stripe\PaymentIntent;
 
 class OrderRepository implements OrderRepositoryInterface {
 
@@ -19,20 +20,14 @@ class OrderRepository implements OrderRepositoryInterface {
         $this->user = \Auth::user();
     }
 
-    public function createPayment(PaymentMethod $paymentMethod, Order $order): Model
+    public function createPayment(PaymentIntent $paymentIntent, PaymentMethod $paymentMethod,  Order $order): Model
     {
-        $amount = $order->calculateAmount();
-        $paymentIntent = $this->stripe->createPaymentIntent([
-            'customer' => $this->user->stripe_customer_id,
-            'payment_method' => $paymentMethod->token,
-            'amount' => $amount,
-            'currency' => 'myr',
-            'confirm' => true
-        ]);
+
         return $order->payment()->create([
-            'amount' => $amount,
+            'amount' =>  $order->calculateAmount(),
             'status' => Payment::PENDING,
             'tx_no' => $paymentIntent->id,
+            'payment_method_id' => $paymentMethod->id,
         ]);
     }
 }

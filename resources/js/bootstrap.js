@@ -182,26 +182,51 @@ let app = new Vue({
             cartItems :[],
             paymentMethods:[],
             showCreditCardForm: false,
-            selectedPaymentMethod: null
+            selectedPaymentMethod: null,
+            disableCheckout: false,
     },
     methods: {
         checkout(){
+            this.disableCheckout = true;
             axios.post('/api/checkout',{
                 cart_items: [...this.selectedCartItems], payment_method_id: this.selectedPaymentMethod
             }).then((response) => {
-                console.log(response.data);
-                let session = response.data
-                return stripe.redirectToCheckout({sessionId: session.id})
-            }).then((checkoutResult) => {
-                if(checkoutResult.error){
-                    console.log(checkoutResult.error.message)
+                let paymentIntentStatus = response.data.payment_intent.status
+                let order = response.data.order;
+                // Status of this PaymentIntent, one of requires_payment_method, requires_confirmation, requires_action, processing, requires_capture, canceled, or succeeded
+                // if the payment intent required extra user authorization
+                if(paymentIntentStatus === 'requires_action'){
+                    stripe.handleCardAction(response.data.payment_intent.client_secret)
+                        .then((result) => {
+                            this.disableCheckout = false;
+                            if(result.error){
+                                alert(result.error.message)
+                                return;
+                            } else {
+                                axios.get(`/api/orders/${order.id}/payment/reconfirm`).then((response) => {
+                                    alert(response.data.message);
+                                }).catch((error) => {
+                                    console.log(error)
+                                });
+                            }
+                        });
+                } else if (paymentIntentStatus === 'succeeded') {
+                    window.alert('Payment Succeeded')
+                    this.disableCheckout = false;
+
                 }
+
             }).catch((error) => {
                 console.error('Checkout Error: ' , error)
+                this.disableCheckout = false;
+
             })
         },
         fetchOrders(){
-
+            axios.get('/api/orders').then((response) => {
+                let orders = response.data;
+                this.orders = [...orders];
+            })
         },
         fetchProducts(){
             axios.get('/api/products').then((response) => {
@@ -229,10 +254,12 @@ let app = new Vue({
         fetchPaymentMethods(){
             axios.get('/api/payment-methods').then((response) => {
                 this.paymentMethods = response.data.payment_methods;
+                this.showCreditCardForm = false;
             })
         },
 
         createPaymentMethod(stripePaymentMethod){
+            console.log(stripePaymentMethod)
             axios.post('/api/payment-methods/create', {
                 'stripe_payment_method_id' :stripePaymentMethod.payment_method,
                 'set_primary' : stripePaymentMethod.set_primary

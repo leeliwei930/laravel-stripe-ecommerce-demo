@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Stripe\Exception\ApiErrorException;
 use function GuzzleHttp\Psr7\str;
 
@@ -33,7 +34,6 @@ class PaymentMethodRepository implements \App\Interfaces\PaymentMethodRepository
     public function create(Request $request)
     {
         $stripe_payment_method_id = $request->input('stripe_payment_method_id');
-
         $paymentGateway = PaymentGateway::firstWhere('name','stripe');
 
         $stripePaymentMethod = $this->stripe->retrievePaymentMethod($stripe_payment_method_id);
@@ -59,16 +59,15 @@ class PaymentMethodRepository implements \App\Interfaces\PaymentMethodRepository
         if($request->input('set_primary') === true){
             $this->user->setPrimaryPaymentMethod($paymentMethod->id);
         }
-
+        $this->user->stripe_customer_setup_intent_id = null;
+        $this->user->save();
         return $paymentMethod;
     }
 
     public function createSetupIntent(): \Stripe\SetupIntent
     {
         // create a setup intent session
-        $stripeCustomer = $this->user->retrieveStripeCustomerAccount();
-        $setupIntent = $this->stripe->createSetupIntent($stripeCustomer);
-        return $setupIntent;
+        return $this->user->retrieveStripeSetupIntent();
     }
 
 

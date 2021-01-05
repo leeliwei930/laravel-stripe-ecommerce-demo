@@ -12,4 +12,5 @@ interface ManagePaymentMethodsAdapter {
     public function deletePaymentMethod();
 
     public function retrievePaymentMethod($stripePaymentMethodID);
+
 }
