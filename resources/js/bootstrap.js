@@ -192,6 +192,7 @@ let app = new Vue({
                 cart_items: [...this.selectedCartItems], payment_method_id: this.selectedPaymentMethod
             }).then((response) => {
                 let paymentIntentStatus = response.data.payment_intent.status
+                console.log(paymentIntentStatus)
                 let order = response.data.order;
                 // Status of this PaymentIntent, one of requires_payment_method, requires_confirmation, requires_action, processing, requires_capture, canceled, or succeeded
                 // if the payment intent required extra user authorization
@@ -205,23 +206,17 @@ let app = new Vue({
                     order.form =  {
                         changePaymentMethod: false,
                     }
-                    this.reconfirmPayment(order)
-
-                } else if (paymentIntentStatus === 'succeeded') {
-                    this.disableCheckout = false;
-                    this.fetchOrders();
-                } else if (paymentIntentStatus === 'failed'){
-                    this.disableCheckout = false;
-                    this.fetchOrders();
-
+                    alert("A card authentication is required for the payment, please authorize the card by clicking Authorize payment in order list")
                 }
+                this.disableCheckout = false;
+
+                this.reconfirmPayment(order);
+                this.fetchOrders();
 
             }).catch((error) => {
                 this.fetchCartItems();
-                console.log(error)
                 alert(error.response.data.message)
                 this.disableCheckout = false;
-
             })
         },
         fetchOrders(){
@@ -325,7 +320,6 @@ let app = new Vue({
                                 alert(result.error.message)
                             }
                             this.fetchOrders();
-
                         });
                 } else if (response.data.payment_intent.status === 'succeeded'){
                     order.disabled_buttons.reconfirm = false;
@@ -364,7 +358,7 @@ let app = new Vue({
         },
         cancelOrder(order){
             order.disabled_buttons.cancel = true;
-            axios.post(`/api/orders/${order.id}/payment/refund`).then((response) => {
+            axios.post(`/api/orders/${order.id}/payment/cancel`).then((response) => {
                 Object.assign(order, response.data.order);
                 order.disabled_buttons.cancel = false;
             }).catch((error) => {

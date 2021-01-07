@@ -131,7 +131,7 @@ class OrderController extends Controller
                     'error' => $this->stripe->getError()->getMessage()
                 ],422);
             }
-            $order  = $order->cancel();
+            $order = $order->cancel();
         } else {
             return response()->json([
                 'error' => "Unable to cancel the payment"

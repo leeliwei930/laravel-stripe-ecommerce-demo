@@ -72,7 +72,10 @@ class CheckoutController extends Controller
         ]);
 
         if($validator->fails()){
-            return response()->json($validator->errors()->toArray(), 422);
+            return response()->json([
+                'message' => "Validation Error",
+                'error' => $validator->errors()->toArray()
+            ], 422);
         }
 
         // Checkout an order from selected cart items
@@ -98,7 +101,6 @@ class CheckoutController extends Controller
         // if stripe can't create the payment intent return error to frontend
         if($this->stripe->anyError()){
             return response()->json([
-                'error' => 'stripe',
                 'message' => $this->stripe->getError()->getMessage()
             ], 422);
         }
