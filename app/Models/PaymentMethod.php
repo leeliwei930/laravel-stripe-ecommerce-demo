@@ -40,13 +40,14 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $is_primary
  * @method static \Illuminate\Database\Eloquent\Builder|PaymentMethod whereCardFingerprint($value)
  * @method static \Illuminate\Database\Eloquent\Builder|PaymentMethod whereIsPrimary($value)
+ * @property-read \App\Models\PaymentGateway $payment_gateway
  */
 class PaymentMethod extends Model
 {
     use HasFactory;
     protected $fillable = ['payment_gateway_id', 'card_fingerprint','user_id', 'token', 'type', 'card_last4', 'card_expiry_date', 'card_issue_country'];
 
-    public function paymentGateway()
+    public function payment_gateway()
     {
         return $this->belongsTo(PaymentGateway::class, 'payment_gateway_id');
     }

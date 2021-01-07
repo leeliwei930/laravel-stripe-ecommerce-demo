@@ -41,7 +41,7 @@ class PaymentMethodController extends Controller
              );
         }
 
-        if($user->paymentMethods()->firstWhere('card_fingerprint' , $paymentMethod->card->fingerprint)){
+        if($user->payment_methods()->firstWhere('card_fingerprint' , $paymentMethod->card->fingerprint)){
             $validator->getMessageBag()->add(
                 "stripe_payment_method_id",
                 "The payment method is exists"

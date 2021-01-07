@@ -43,10 +43,11 @@ class StripeWebhookController extends Controller
 
         switch($event->type){ // forward different event to different event handler
             case 'payment_intent.succeeded':
-//                Log::debug("PAYMENT SUCCESS: ".$event->data->toJSON()); uncomment to read the JSON event data
-                $this->handlePaymentSuccess($event->data->object);
-                return;
-
+                return $this->handlePaymentSuccess($event->data->object);
+            case 'payment_intent.payment_failed':
+                return $this->handlePaymentFailed($event->data->object);
+            case 'payment_intent.requires_action':
+                return $this->handlePaymentRequireActions($event->data->object);
         }
 
     }
@@ -58,6 +59,28 @@ class StripeWebhookController extends Controller
         // update the payment status to success
         $payment->update([
             'status' => Payment::SUCCESS,
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function handlePaymentFailed(PaymentIntent $paymentIntent)
+    {
+        $payment = Payment::firstWhere('tx_no', $paymentIntent->id);
+        // update the payment status to success
+        $payment->update([
+            'status' => Payment::FAILED,
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function handlePaymentRequireActions(PaymentIntent $paymentIntent)
+    {
+        $payment = Payment::firstWhere('tx_no', $paymentIntent->id);
+        // update the payment status to success
+        $payment->update([
+            'status' => Payment::REQUIRES_ACTION,
         ]);
 
         return response()->json(['success' => true]);

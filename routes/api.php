@@ -39,5 +39,15 @@ Route::prefix('payment-methods')->group(function(){
 
 Route::prefix('orders')->group(function(){
     // can be use as callback url for others payment channel to update the order's payment status
+    Route::get('/', [\App\Http\Controllers\OrderController::class, 'list']);
     Route::get('/{order}/payment/reconfirm', [\App\Http\Controllers\CheckoutController::class, 'reconfirmPayment']);
+    // allow user can change the payment method for the order when the payment status is failed
+    Route::put('/{order}/payment/update', [\App\Http\Controllers\OrderController::class, 'changePaymentMethod']);
+    // cancel the order
+     // -  order can be cancelled within 3 days after order paid
+    // - the order payment status is in failed or requires action
+    // if the payment is paid, which mean a refund need to be created.
+    Route::post('/{order}/payment/cancel', [\App\Http\Controllers\OrderController::class, 'cancel']);
+    Route::post('/{order}/payment/refund', [\App\Http\Controllers\OrderController::class, 'refund']);
+
 });

@@ -8,6 +8,7 @@ use App\Interfaces\OrderRepositoryInterface;
 use App\Interfaces\PaymentMethodRepositoryInterface;
 use App\Repositories\CartRepository;
 use App\Repositories\OrderRepository;
+use App\Repositories\PaymentMethodRepository;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,10 +24,10 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->isLocal()) {
             $this->app->register(\Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider::class);
         }
+        $this->app->bind(StripePaymentAdapter::class, StripePaymentAdapter::class);
         $this->app->bind(CartRepositoryInterface::class, CartRepository::class);
 
         $this->app->bind(OrderRepositoryInterface::class, OrderRepository::class);
-        $this->app->bind(StripePaymentAdapter::class, StripePaymentAdapter::class);
         $this->app->bind(PaymentMethodRepositoryInterface::class, PaymentMethodRepository::class);
     }
 

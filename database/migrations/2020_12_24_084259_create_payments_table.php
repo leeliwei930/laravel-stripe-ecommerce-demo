@@ -16,9 +16,12 @@ class CreatePaymentsTable extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->enum('status', [
-                \App\Models\Payment::SUCCESS,
-                \App\Models\Payment::FAILED,
                 \App\Models\Payment::PENDING,
+                \App\Models\Payment::FAILED,
+                \App\Models\Payment::REQUIRES_ACTION,
+                \App\Models\Payment::CANCELLED,
+                \App\Models\Payment::REFUNDED,
+                \App\Models\Payment::SUCCESS,
             ]);
             $table->text('payment_status_message')->nullable();
             $table->unsignedBigInteger('amount');

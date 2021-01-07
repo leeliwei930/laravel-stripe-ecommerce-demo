@@ -9,4 +9,9 @@ use Stripe\PaymentIntent;
 
 interface OrderRepositoryInterface {
     public function createPayment(PaymentIntent $paymentIntent, PaymentMethod $paymentMethod, Order $order);
+
+    public function list();
+
+    public function retrieveOrder($order, $relations);
+
 }

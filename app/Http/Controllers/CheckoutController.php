@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Adapters\Stripe\StripePaymentAdapter;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Repositories\CartRepository;
 use App\Repositories\OrderRepository;
@@ -39,7 +40,7 @@ class CheckoutController extends Controller
             'payment_method_id' => [
                 'required',
                 function ($attribute, $value, $fail) {
-                    $paymentMethod = Auth::user()->paymentMethods()->find($value);
+                    $paymentMethod = Auth::user()->payment_methods()->find($value);
                     if(is_null($paymentMethod)){
                         $fail("Unable to use this payment method to perform a charge");
                     }
@@ -81,7 +82,7 @@ class CheckoutController extends Controller
         $paymentMethodID = $request->input('payment_method_id');
 
         // retrieve laravel payment method id
-        $paymentMethod = $this->user->paymentMethods()->find($paymentMethodID);
+        $paymentMethod = $this->user->payment_methods()->find($paymentMethodID);
 
         // create payment intent
         $paymentIntent = $this->stripe->createPaymentIntent([
@@ -118,29 +119,28 @@ class CheckoutController extends Controller
     {
         $order = $this->user->orders()->find($order);
 
-        $order->load('payment.paymentMethod.paymentGateway');
+        $order->load('payment.payment_method.payment_gateway');
 
         $payment = $order['payment'];
 
-        $paymentMethod = $payment['paymentMethod'];
-        $paymentGateway = $paymentMethod['paymentGateway'];
+        $paymentMethod = $payment['payment_method'];
+        $paymentGateway = $paymentMethod['payment_gateway'];
 
-        return $this->handleReconfirmPayment($paymentGateway->name, $payment->tx_no);
+        return $this->handleReconfirmPayment($paymentGateway->name, $payment);
 
     }
 
-    private function handleReconfirmPayment($paymentGatewayName, $transactionRefNumber){
+    private function handleReconfirmPayment($paymentGatewayName, Payment $payment){
         switch($paymentGatewayName){
             case "stripe":
-                return $this->reconfirmStripePaymentIntent($transactionRefNumber);
+                return $this->reconfirmStripePaymentIntent($payment);
         }
     }
 
-    private function reconfirmStripePaymentIntent($transactionRefNumber){
-        $paymentIntent = $this->stripe->retrievePaymentIntent($transactionRefNumber);
+    private function reconfirmStripePaymentIntent(Payment $payment){
 
         // reconfirm the payment intent
-        $paymentIntent->confirm();
+        $paymentIntent = $this->stripe->confirmPaymentIntent($payment);
 
         if($this->stripe->anyError()){
             return response()->json([

@@ -195,37 +195,49 @@ let app = new Vue({
                 let order = response.data.order;
                 // Status of this PaymentIntent, one of requires_payment_method, requires_confirmation, requires_action, processing, requires_capture, canceled, or succeeded
                 // if the payment intent required extra user authorization
-                if(paymentIntentStatus === 'requires_action'){
-                    stripe.handleCardAction(response.data.payment_intent.client_secret)
-                        .then((result) => {
-                            this.disableCheckout = false;
-                            if(result.error){
-                                alert(result.error.message)
-                                return;
-                            } else {
-                                axios.get(`/api/orders/${order.id}/payment/reconfirm`).then((response) => {
-                                    alert(response.data.message);
-                                }).catch((error) => {
-                                    console.log(error)
-                                });
-                            }
-                        });
+                this.fetchCartItems();
+                if(paymentIntentStatus === 'requires_confirmation' || paymentIntentStatus ==='requires_action' ){
+                    order.disabled_buttons = {
+                        reconfirm: false,
+                        cancel: false,
+                        refund: false,
+                    }
+                    order.form =  {
+                        changePaymentMethod: false,
+                    }
+                    this.reconfirmPayment(order)
+
                 } else if (paymentIntentStatus === 'succeeded') {
-                    window.alert('Payment Succeeded')
                     this.disableCheckout = false;
+                    this.fetchOrders();
+                } else if (paymentIntentStatus === 'failed'){
+                    this.disableCheckout = false;
+                    this.fetchOrders();
 
                 }
 
             }).catch((error) => {
-                console.error('Checkout Error: ' , error)
+                this.fetchCartItems();
+                console.log(error)
+                alert(error.response.data.message)
                 this.disableCheckout = false;
 
             })
         },
         fetchOrders(){
             axios.get('/api/orders').then((response) => {
-                let orders = response.data;
-                this.orders = [...orders];
+
+                this.orders = response.data.orders.map((order) => {
+                    order.disabled_buttons = {
+                        reconfirm: false,
+                        cancel: false,
+                        refund: false,
+                    }
+                    order.form =  {
+                        changePaymentMethod: false,
+                    }
+                    return order;
+                });
             })
         },
         fetchProducts(){
@@ -289,6 +301,77 @@ let app = new Vue({
         removeCartItem(cartItemId){
 
         },
+        canReattemptPayment(order){
+            let paymentStatus = order.payment.status;
+            return ['pending', 'failed'].includes(paymentStatus)
+        },
+        canReauthorizePayment(order){
+            let paymentStatus = order.payment.status;
+            return ['requires_action'].includes(paymentStatus)
+
+        },
+        canChangePaymentMethod(order){
+            let paymentStatus = order.payment.status
+            return ['pending', 'failed'].includes(paymentStatus)
+        },
+        reconfirmPayment(order){
+            order.disabled_buttons.reconfirm = true;
+            axios.get(`/api/orders/${order.id}/payment/reconfirm`).then((response) => {
+                if(response.data.payment_intent.status ==='requires_action' || response.data.payment_intent.status ==='requires_confirmation'){
+                    stripe.handleCardAction(response.data.payment_intent.client_secret)
+                        .then((result) => {
+                            if(result.error){
+                                order.disabled_buttons.reconfirm = false;
+                                alert(result.error.message)
+                            }
+                            this.fetchOrders();
+
+                        });
+                } else if (response.data.payment_intent.status === 'succeeded'){
+                    order.disabled_buttons.reconfirm = false;
+                    this.fetchOrders()
+                    alert('Payment Success')
+                }
+            }).catch((error) => {
+                order.disabled_buttons.reconfirm = false;
+                this.fetchOrders()
+                alert(error.response.data.message);
+            });
+        },
+        updatePaymentMethod(order, paymentMethodId){
+            if(order.payment.payment_method_id === paymentMethodId){
+                return;
+            }
+            axios.put(`/api/orders/${order.id}/payment/update` , {
+                payment_method_id: paymentMethodId
+            }).then((response) => {
+                Object.assign(order, response.data.order)
+            }).catch((error) => {
+                console.log(error)
+            })
+        },
+        refundPayment(order){
+            order.disabled_buttons.refund = true;
+            axios.post(`/api/orders/${order.id}/payment/refund`).then((response) => {
+                // setback the new order data
+                Object.assign(order, response.data.order);
+                order.disabled_buttons.refund = false;
+
+            }).catch((error) => {
+                alert(error.response.data.error);
+                order.disabled_buttons.refund = false;
+            })
+        },
+        cancelOrder(order){
+            order.disabled_buttons.cancel = true;
+            axios.post(`/api/orders/${order.id}/payment/refund`).then((response) => {
+                Object.assign(order, response.data.order);
+                order.disabled_buttons.cancel = false;
+            }).catch((error) => {
+                alert(error.response.data.error);
+                order.disabled_buttons.cancel = false;
+            })
+        }
     },
     created() {
         this.fetchProducts();

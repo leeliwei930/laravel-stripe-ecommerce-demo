@@ -21,6 +21,8 @@ $ cp .env.example .env
 ### Run npm install for frontend packages Vue and Tailwind
 ```bash
 $ npm install
+# or 
+$ yarn
 ```
 
 ### Run NPX mix to start the frontend bundling

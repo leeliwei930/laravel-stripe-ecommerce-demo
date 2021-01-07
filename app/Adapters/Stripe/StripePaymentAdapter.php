@@ -3,25 +3,30 @@
 namespace App\Adapters\Stripe;
 
 use App\Adapters\ManagePaymentMethodsAdapter;
+use App\Adapters\ManageRefund;
 use App\Adapters\PaymentAdapter;
 use App\Adapters\ManageCustomer;
 use App\Adapters\PaymentWebhookAdapter;
 
 use App\Adapters\SavePaymentDetails;
+use App\Models\Payment;
 use App\Traits\ErrorRecorder;
-use Cassandra\Custom;
+
 use Stripe\Customer;
 use Stripe\Event;
 
-use App\Models\User;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\SignatureVerificationException;
 
 use Stripe\PaymentIntent;
 use Stripe\PaymentMethod;
+use Stripe\Refund;
 use Stripe\SetupIntent;
 
-class StripePaymentAdapter implements PaymentAdapter, ManageCustomer, PaymentWebhookAdapter, ManagePaymentMethodsAdapter, SavePaymentDetails {
+class StripePaymentAdapter implements
+    PaymentAdapter, ManageCustomer, PaymentWebhookAdapter, ManagePaymentMethodsAdapter, SavePaymentDetails,
+    ManageRefund
+{
     use ErrorRecorder;
     protected $webhookEvent;
     protected $webhookError = null;
@@ -61,28 +66,39 @@ class StripePaymentAdapter implements PaymentAdapter, ManageCustomer, PaymentWeb
         return null;
     }
 
-    public function confirmPaymentIntent($paymentIntentID, $stripePaymentMethodID)
-    {
-        // TODO: Implement confirmPaymentIntent() method.
-    }
-
-    public function cancelPaymentIntent($paymentIntentID): ?PaymentIntent
+    public function confirmPaymentIntent(Payment $payment)
     {
         try {
-            return $this->stripe->paymentIntents->cancel($paymentIntentID);
+           $paymentIntent = $this->retrievePaymentIntent($payment->tx_no);
+           $payment->load('payment_method');
+           $stripePaymentMethod = $payment['payment_method'];
+           $paymentIntent->confirm([
+               'payment_method' => $stripePaymentMethod->token
+           ]);
+           return $paymentIntent;
+        } catch (ApiErrorException $stripeException){
+            $this->recordError($stripeException);
+        }
+        return null;
+    }
+
+
+    public function updatePaymentIntent($paymentIntentID, $paymentIntentData): ?PaymentIntent
+    {
+        try {
+            return $this->stripe->paymentIntents->update($paymentIntentID, $paymentIntentData);
+
         } catch (ApiErrorException $stripeException) {
             $this->recordError($stripeException);
         }
         return null;
     }
 
-    public function updatePaymentIntent($paymentIntentID, $paymentIntentData): ?PaymentIntent
+    public function cancelPaymentIntent($paymentIntentID, $cancelPaymentIntentPayload) : ?PaymentIntent
     {
         try {
-            return $this->stripe->paymentIntents->update($paymentIntentID, [
-                'amount' => $paymentIntentData['amount'],
-                'currency' => $paymentIntentData['currency']
-            ]);
+            $paymentIntent = $this->retrievePaymentIntent($paymentIntentID);
+            return $paymentIntent->cancel($cancelPaymentIntentPayload);
         } catch (ApiErrorException $stripeException) {
             $this->recordError($stripeException);
         }
@@ -190,6 +206,23 @@ class StripePaymentAdapter implements PaymentAdapter, ManageCustomer, PaymentWeb
     public function deletePaymentMethod()
     {
 
+    }
+
+    public function createRefund($paymentIntentID, $refundPayload) : ?Refund
+    {
+        $options = [
+            'payment_intent' => $paymentIntentID,
+            'reason' => $refundPayload['reason'] ?? null,
+        ];
+        if(isset($refundPayload['amount'])){
+            $options['amount'] = $refundPayload['amount'];
+        }
+        try {
+            return $this->stripe->refunds->create($options);
+        } catch (ApiErrorException $exception){
+            $this->recordError($exception);
+        }
+        return null;
     }
 
 

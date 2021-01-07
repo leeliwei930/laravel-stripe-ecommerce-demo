@@ -39,10 +39,15 @@ class CartRepository implements \App\Interfaces\CartRepositoryInterface {
     {
         $cartItems = collect($items);
         if(!$cartItems->isEmpty()){
-            $selectedCheckoutItems = $this->user
-                                    ->cartItems()
-                                    ->whereIn('id' , $cartItems->toArray())
+            $checkoutItemsQuery = $this->user
+                ->cartItems()
+                ->whereIn('id' , $cartItems->toArray());
+            $selectedCheckoutItems = $checkoutItemsQuery
                                     ->get();
+
+            // clear cart items
+            $checkoutItemsQuery->delete();
+
             return $this->user->createOrder($selectedCheckoutItems);
         }
         return null;

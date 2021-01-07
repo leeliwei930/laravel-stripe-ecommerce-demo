@@ -22,13 +22,14 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder|PaymentGateway whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder|PaymentGateway whereUpdatedAt($value)
  * @mixin \Eloquent
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\PaymentMethod[] $payment_methods
  */
 class PaymentGateway extends Model
 {
     use HasFactory;
     protected $fillable = ['name'];
 
-    public function paymentMethods()
+    public function payment_methods()
     {
         return $this->hasMany(PaymentMethod::class);
     }

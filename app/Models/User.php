@@ -51,6 +51,7 @@ use Stripe\StripeObject;
  * @method static \Illuminate\Database\Eloquent\Builder|User whereStripeCustomerSetupIntentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|User whereUpdatedAt($value)
  * @mixin \Eloquent
+ * @property-read Collection|\App\Models\PaymentMethod[] $payment_methods
  */
 class User extends Authenticatable
 {
@@ -137,7 +138,7 @@ class User extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
-    public function paymentMethods()
+    public function payment_methods()
     {
         return $this->hasMany(PaymentMethod::class);
     }
@@ -173,7 +174,7 @@ class User extends Authenticatable
             $previousPrimaryPaymentMethod->is_primary = false;
             $previousPrimaryPaymentMethod->save();
         }
-        $paymentMethod = $this->paymentMethods()->find($paymentMethodID);
+        $paymentMethod = $this->payment_methods()->find($paymentMethodID);
         $paymentMethod->is_primary = true;
         $paymentMethod->save();
 
@@ -183,13 +184,13 @@ class User extends Authenticatable
 
     public function getPrimaryPaymentMethod()
     {
-        return $this->paymentMethods()->firstWhere('is_primary', true);
+        return $this->payment_methods()->firstWhere('is_primary', true);
     }
 
     public function presetPrimaryPaymentMethod()
     {
-        if($this->paymentMethods()->count() == 1){
-            $paymentMethod = $this->paymentMethods()->orderBy('created_at' , 'desc')->first();
+        if($this->payment_methods()->count() == 1){
+            $paymentMethod = $this->payment_methods()->orderBy('created_at' , 'desc')->first();
             $this->setPrimaryPaymentMethod($paymentMethod->id);
         }
     }

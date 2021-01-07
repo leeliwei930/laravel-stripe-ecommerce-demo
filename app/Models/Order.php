@@ -23,20 +23,73 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder|Order whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Order whereUserId($value)
  * @mixin \Eloquent
+ * @property-read mixed $amount
+ * @property-read mixed $cancellable
+ * @property-read bool $refundable
  */
 class Order extends Model
 {
     use HasFactory;
+    protected $appends = [
+        'amount', 'cancellable', 'refundable'
+    ];
 
+    public function getAmountAttribute()
+    {
+        return $this->calculateAmount();
+    }
     public function payment()
     {
         return $this->hasOne(Payment::class);
     }
 
+    public function getCancellableAttribute(): bool
+    {
+       return $this->cancellable();
+    }
+
+    public function getRefundableAttribute() : bool
+    {
+        return $this->refundable();
+    }
+
+    public function cancellable(): bool
+    {
+        return in_array($this->payment->status, [Payment::REQUIRES_ACTION, Payment::PENDING]);
+    }
+
+    public function refundable() : bool
+    {
+        $payment = $this->payment;
+        $payment->load('payment_method.payment_gateway');
+        $withinRefundableDate = now()->isBefore($payment->created_at->addDays(5));
+        return in_array($this->payment->status, [Payment::SUCCESS]) && $withinRefundableDate;
+    }
+
+    public function createRefund($refundID)
+    {
+
+        $payment = $this->payment;
+        $payment->update([
+            'status' => Payment::REFUNDED,
+            'refund_id' => $refundID
+        ]);
+       return $this;
+    }
+
+    public function cancel()
+    {
+        $payment = $this->payment;
+        $payment->update([
+            'status' => Payment::CANCELLED
+        ]);
+        return $this;
+    }
     public function items()
     {
         return $this->belongsToMany(Product::class, 'orders_products' , 'order_id' , 'product_id')->withPivot('quantity');
     }
+
 
     public function getStripeOrderSummary(): array
     {
@@ -69,4 +122,6 @@ class Order extends Model
 
         return $products->sum('total_amount');
     }
+
+
 }

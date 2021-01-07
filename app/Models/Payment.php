@@ -36,24 +36,35 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\PaymentMethod|null $paymentMethod
  * @property string|null $refund_id
  * @method static \Illuminate\Database\Eloquent\Builder|Payment whereRefundId($value)
+ * @property-read \App\Models\PaymentMethod|null $payment_method
  */
 class Payment extends Model
 {
     const PENDING = "pending";
     const SUCCESS = "success";
     const FAILED = "failed";
+    const REQUIRES_ACTION = "requires_action";
+    const CANCELLED = "cancelled";
+    const REFUNDED = "refunded";
 
     use HasFactory;
-    protected $fillable = ['amount', 'checkout_id', 'tx_no', 'order_id', 'payment_method_id', 'status', 'payment_status_message'];
+    protected $fillable = [
+        'amount', 'checkout_id', 'tx_no', 'order_id',
+        'payment_method_id', 'status', 'payment_status_message',
+        'refund_id'
+    ];
+
     public function order()
     {
         return $this->belongsTo(Order::class, 'order_id');
     }
 
-    public function paymentMethod()
+    public function payment_method()
     {
         return $this->belongsTo(PaymentMethod::class);
     }
+
+
 
 
 

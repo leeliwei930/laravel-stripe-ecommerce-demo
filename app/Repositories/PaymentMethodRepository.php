@@ -24,11 +24,11 @@ class PaymentMethodRepository implements \App\Interfaces\PaymentMethodRepository
     }
 
     public function all() : Collection {
-        return $this->user->paymentMethods()->with(['paymentGateway'])->get();
+        return $this->user->payment_methods()->with(['payment_gateway'])->get();
     }
 
     public function retrieve($paymentMethodID) : ?PaymentMethod {
-        return $this->user->paymentMethods()->with(['paymentGateway'])->find($paymentMethodID);
+        return $this->user->payment_methods()->with(['payment_gateway'])->find($paymentMethodID);
     }
 
     public function create(Request $request)
@@ -38,7 +38,7 @@ class PaymentMethodRepository implements \App\Interfaces\PaymentMethodRepository
 
         $stripePaymentMethod = $this->stripe->retrievePaymentMethod($stripe_payment_method_id);
 
-        $paymentMethod = $this->user->paymentMethods()->firstOrCreate([
+        $paymentMethod = $this->user->payment_methods()->firstOrCreate([
             'card_fingerprint' => $stripePaymentMethod->card->fingerprint,
             'user_id' => $this->user->id,
         ],[

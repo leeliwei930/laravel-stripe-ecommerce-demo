@@ -77,6 +77,103 @@
             </div>
             <div class="mx-5 my-2">
                 <h2 class="text-lg text-black font-bold">Orders</h2>
+                <div v-for="order in orders" class="rounded px-3 py-2 rounded shadow bg-white my-1">
+                    <div class="flex flex-col items-start">
+                        <h2 class="font-semibold">ORDER ID: @{{order.id}}</h2>
+                        <table class="w-full">
+                            <thead>
+                               <tr>
+                                   <th class="text-left">Product Name</th>
+                                   <th class="text-left">Quantity</th>
+                                   <th class="text-right">Amount</th>
+                               </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in order.items">
+                                    <td>@{{ item.name }}</td>
+                                    <td>@{{ item.pivot.quantity }}</td>
+                                    <td class="text-right">RM @{{ (item.price * item.pivot.quantity) / 100 }}</td>
+                                </tr>
+
+                            </tbody>
+                        </table>
+                        <div class="self-end inline-flex flex-col items-end">
+                            <h2 class="font-bold">Total Amount</h2>
+                            <span>RM @{{ order.amount / 100}}</span>
+                        </div>
+                        <div class="flex flex-row justify-between w-full">
+                            <div class="flex flex-col">
+                                <h2 class="uppercase text-sm">Payment Method</h2>
+                                <span >@{{ order.payment.payment_method.type }} ····@{{ order.payment.payment_method.card_last4 }}</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <h2 class="uppercase text-sm">Payment Status</h2>
+                                <span class="capitalize">@{{ order.payment.status }}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col flex-1 w-full">
+                                <button
+                                    class="w-full bg-indigo-500 hover:bg-indigo-400 text-white py-2 px-4 rounded my-1"
+                                    v-if="canReattemptPayment(order)"
+                                    @click="reconfirmPayment(order)"
+                                    :disabled="order.disabled_buttons.reconfirm"
+                                >
+                                    Reattempt Payment
+                                </button>
+                                <button
+                                    class="w-full bg-indigo-500 hover:bg-indigo-400 text-white py-2 px-4 rounded my-1"
+                                    v-if="canReauthorizePayment(order)"
+                                    @click="reconfirmPayment(order)"
+                                    :disabled="order.disabled_buttons.reconfirm"
+                                >
+                                    Authorize Payment
+                                </button>
+                                <button
+                                    class="w-full bg-blue-500 hover:bg-blue-400 text-white py-2 px-4 rounded my-1"
+                                    v-if="canChangePaymentMethod(order) && !order.form.changePaymentMethod"
+                                    @click="order.form.changePaymentMethod = !order.form.changePaymentMethod"
+                                >
+                                    Change Payment Method
+                                </button>
+                                <div class="flex flex-col w-full border rounded p-3" v-if="order.form.changePaymentMethod">
+                                    <h2 class="uppercase text-sm font-bold text-gray-500">CHANGE PAYMENT METHOD</h2>
+                                    <div class="my-3">
+                                    <select
+                                        name="payment_method"
+                                        class="p-3 bg-white border w-full"
+                                        @change="(e) => updatePaymentMethod(order, e.target.value)"
+                                    >
+                                        <option :value="paymentMethod.id" v-for="paymentMethod in paymentMethods">
+                                            ····@{{paymentMethod.card_last4}}
+                                        </option>
+                                    </select>
+                                    <button
+                                        class="w-full bg-blue-500 hover:bg-blue-400 text-white py-2 px-4 rounded my-2"
+                                        @click="order.form.changePaymentMethod = false">
+                                        Done
+                                    </button>
+                                    </div>
+                                </div>
+                                <button
+                                    class="w-full bg-green-500 hover:bg-green-400 text-white py-2 px-4 rounded my-1"
+                                    v-if="order.refundable"
+                                    :disabled="order.disabled_buttons.refund"
+                                    @click="refundPayment(order)"
+                                >
+                                    Make Refund
+                                </button>
+                                <button
+                                    class="w-full bg-red-500 hover:bg-red-400 text-white py-2 px-4 rounded my-1"
+                                    v-if="order.cancellable"
+                                    :disabled="order.disabled_buttons.cancel"
+                                    @click="cancelOrder(order)"
+                                >
+                                    Cancel Order
+                                </button>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     </body>
